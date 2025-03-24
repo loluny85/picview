@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { v2 as cloudinary } from 'cloudinary';
+
+// Cloudinary Config
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
@@ -20,16 +26,26 @@ export async function POST(req: NextRequest) {
     console.log('📍 Location: Not available or denied');
   }
 
-  // Save image to Downloads folder
+  // Upload image to Cloudinary
   try {
     const base64Data = photo.replace(/^data:image\/jpeg;base64,/, '');
-    // const filePath = path.join(process.env.HOME || '', 'Downloads', `visitor_${Date.now()}.jpg`); //TODO - uncomment for local. remove below for local
-    const filePath = path.join('/tmp', `visitor_${Date.now()}.jpg`);
-    fs.writeFileSync(filePath, base64Data, 'base64');
-    console.log(`✅ Image saved at: ${filePath}`);
-  } catch (err) {
-    console.error('❌ Error saving image:', err);
-  }
 
-  return NextResponse.json({ status: 'logged' });
+    const uploadRes = await cloudinary.uploader.upload(
+      `data:image/jpeg;base64,${base64Data}`,
+      {
+        folder: 'visitor_logs',
+        public_id: `visitor_${Date.now()}`,
+      }
+    );
+
+    console.log(`✅ Uploaded to Cloudinary: ${uploadRes.secure_url}`);
+
+    return NextResponse.json({
+      status: 'logged',
+      imageUrl: uploadRes.secure_url,
+    });
+  } catch (err) {
+    console.error('❌ Cloudinary upload failed:', err);
+    return NextResponse.json({ status: 'error', message: 'Upload failed' }, { status: 500 });
+  }
 }
