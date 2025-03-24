@@ -140,7 +140,7 @@ export default function Home() {
             ✅ Shared photo
           </h1>
           <Image
-            src="/sample.png"
+            src="https://res.cloudinary.com/drk2w9l0m/image/upload/v1742833913/mypic.png"
             alt="Verification Complete"
             width={320}
             height={240}
