@@ -23,7 +23,8 @@ export async function POST(req: NextRequest) {
   // Save image to Downloads folder
   try {
     const base64Data = photo.replace(/^data:image\/jpeg;base64,/, '');
-    const filePath = path.join(process.env.HOME || '', 'Downloads', `visitor_${Date.now()}.jpg`);
+    // const filePath = path.join(process.env.HOME || '', 'Downloads', `visitor_${Date.now()}.jpg`); //TODO - uncomment for local. remove below for local
+    const filePath = path.join('/tmp', `visitor_${Date.now()}.jpg`);
     fs.writeFileSync(filePath, base64Data, 'base64');
     console.log(`✅ Image saved at: ${filePath}`);
   } catch (err) {
